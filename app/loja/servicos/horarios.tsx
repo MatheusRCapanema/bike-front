@@ -1,12 +1,20 @@
+// HorariosServicoScreen.tsx
 "use client"
 
 import { useState, useEffect } from "react"
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, Alert, ActivityIndicator, Modal } from "react-native"
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  FlatList,
+  Alert,
+  ActivityIndicator,
+  Modal,
+} from "react-native"
 import { useLocalSearchParams, useRouter } from "expo-router"
 import { Ionicons } from "@expo/vector-icons"
 import DateTimePicker from "@react-native-community/datetimepicker"
-// Atualizar o import da API
-import { getHorariosServico, criarHorariosServico } from "../../../lib/api"
 
 type Horario = {
   id: number
@@ -28,16 +36,35 @@ export default function HorariosServicoScreen() {
   const [showTimePicker, setShowTimePicker] = useState(false)
   const [addingHorario, setAddingHorario] = useState(false)
 
+  // Defina aqui a URL base da sua API (ou pegue de variáveis de ambiente)
+  const API_BASE = "https://5000-idx-bikestoreapi-1744211447227.cluster-uf6urqn4lned4spwk4xorq6bpo.cloudworkstations.dev" // por exemplo, ou "http://seuServidor:5000"
+
   const carregarHorarios = async () => {
     if (!lojaId || !servicoId) return
 
     try {
       setLoading(true)
-      const data = await getHorariosServico(Number(lojaId), Number(servicoId))
-      setHorarios(data)
+      const resp = await fetch(
+        `${API_BASE}/loja/${lojaId}/servico/${servicoId}/horarios`
+      )
+      if (!resp.ok) {
+        throw new Error(`GET retornou status ${resp.status}`)
+      }
+      const data = await resp.json()
+
+      if (Array.isArray(data.horarios_servico)) {
+        setHorarios(data.horarios_servico)
+      } else {
+        console.warn("Resposta inesperada ao listar horários:", data)
+        setHorarios([])
+      }
     } catch (error) {
       console.error("Erro ao carregar horários:", error)
-      Alert.alert("Erro", "Não foi possível carregar os horários.")
+      setHorarios([])
+      Alert.alert(
+        "Aviso",
+        "Não foi possível carregar os horários. Tente novamente mais tarde."
+      )
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -46,6 +73,7 @@ export default function HorariosServicoScreen() {
 
   useEffect(() => {
     carregarHorarios()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lojaId, servicoId])
 
   const handleRefresh = () => {
@@ -57,27 +85,28 @@ export default function HorariosServicoScreen() {
     setModalVisible(true)
   }
 
-  const handleDateChange = (event: any, selectedDate?: Date) => {
+  const handleDateChange = (event: any, date?: Date) => {
     setShowDatePicker(false)
-    if (selectedDate) {
-      setSelectedDate(selectedDate)
+    if (date) {
+      setSelectedDate(date)
     }
   }
 
-  const handleTimeChange = (event: any, selectedTime?: Date) => {
+  const handleTimeChange = (event: any, time?: Date) => {
     setShowTimePicker(false)
-    if (selectedTime) {
-      setSelectedTime(selectedTime)
+    if (time) {
+      setSelectedTime(time)
     }
   }
 
   const handleSaveHorario = async () => {
-    // Combinar data e hora selecionadas
+    // Combina data e hora
     const horarioCompleto = new Date(selectedDate)
     horarioCompleto.setHours(selectedTime.getHours())
     horarioCompleto.setMinutes(selectedTime.getMinutes())
+    horarioCompleto.setSeconds(0)
+    horarioCompleto.setMilliseconds(0)
 
-    // Verificar se o horário é no futuro
     if (horarioCompleto <= new Date()) {
       Alert.alert("Erro", "O horário deve ser no futuro.")
       return
@@ -85,7 +114,23 @@ export default function HorariosServicoScreen() {
 
     setAddingHorario(true)
     try {
-      await criarHorariosServico(Number(lojaId), Number(servicoId), [horarioCompleto.toISOString()])
+      const body = {
+        horarios: [horarioCompleto.toISOString()],
+      }
+      const resp = await fetch(
+        `${API_BASE}/loja/${lojaId}/servico/${servicoId}/horarios`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(body),
+        }
+      )
+      if (!resp.ok) {
+        const text = await resp.text()
+        throw new Error(`POST retornou ${resp.status}: ${text}`)
+      }
 
       setModalVisible(false)
       carregarHorarios()
@@ -98,18 +143,18 @@ export default function HorariosServicoScreen() {
     }
   }
 
-  const formatarData = (dataString: string) => {
-    const data = new Date(dataString)
-    return data.toLocaleDateString("pt-BR", {
+  const formatarData = (isoString: string) => {
+    const d = new Date(isoString)
+    return d.toLocaleDateString("pt-BR", {
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
     })
   }
 
-  const formatarHora = (dataString: string) => {
-    const data = new Date(dataString)
-    return data.toLocaleTimeString("pt-BR", {
+  const formatarHora = (isoString: string) => {
+    const d = new Date(isoString)
+    return d.toLocaleTimeString("pt-BR", {
       hour: "2-digit",
       minute: "2-digit",
     })
@@ -122,8 +167,17 @@ export default function HorariosServicoScreen() {
         <Text style={styles.horarioHora}>{formatarHora(item.horario)}</Text>
       </View>
       <View style={styles.statusContainer}>
-        <View style={[styles.statusIndicator, { backgroundColor: item.is_disponivel ? "#4CAF50" : "#FF3B30" }]} />
-        <Text style={styles.statusText}>{item.is_disponivel ? "Disponível" : "Reservado"}</Text>
+        <View
+          style={[
+            styles.statusIndicator,
+            {
+              backgroundColor: item.is_disponivel ? "#4CAF50" : "#FF3B30",
+            },
+          ]}
+        />
+        <Text style={styles.statusText}>
+          {item.is_disponivel ? "Disponível" : "Reservado"}
+        </Text>
       </View>
     </View>
   )
@@ -131,7 +185,10 @@ export default function HorariosServicoScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => router.back()}
+        >
           <Ionicons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
         <View>
@@ -159,12 +216,17 @@ export default function HorariosServicoScreen() {
               <View style={styles.emptyContainer}>
                 <Ionicons name="time-outline" size={64} color="#CCC" />
                 <Text style={styles.emptyText}>Nenhum horário cadastrado</Text>
-                <Text style={styles.emptySubtext}>Adicione horários para este serviço</Text>
+                <Text style={styles.emptySubtext}>
+                  Adicione horários para este serviço
+                </Text>
               </View>
             }
           />
 
-          <TouchableOpacity style={styles.addButton} onPress={handleAddHorario}>
+          <TouchableOpacity
+            style={styles.addButton}
+            onPress={handleAddHorario}
+          >
             <Ionicons name="add" size={24} color="white" />
           </TouchableOpacity>
 
@@ -185,17 +247,28 @@ export default function HorariosServicoScreen() {
 
                 <View style={styles.dateTimeContainer}>
                   <Text style={styles.dateTimeLabel}>Data:</Text>
-                  <TouchableOpacity style={styles.dateTimeButton} onPress={() => setShowDatePicker(true)}>
-                    <Text style={styles.dateTimeText}>{selectedDate.toLocaleDateString("pt-BR")}</Text>
+                  <TouchableOpacity
+                    style={styles.dateTimeButton}
+                    onPress={() => setShowDatePicker(true)}
+                  >
+                    <Text style={styles.dateTimeText}>
+                      {selectedDate.toLocaleDateString("pt-BR")}
+                    </Text>
                     <Ionicons name="calendar-outline" size={20} color="#0D47A1" />
                   </TouchableOpacity>
                 </View>
 
                 <View style={styles.dateTimeContainer}>
                   <Text style={styles.dateTimeLabel}>Hora:</Text>
-                  <TouchableOpacity style={styles.dateTimeButton} onPress={() => setShowTimePicker(true)}>
+                  <TouchableOpacity
+                    style={styles.dateTimeButton}
+                    onPress={() => setShowTimePicker(true)}
+                  >
                     <Text style={styles.dateTimeText}>
-                      {selectedTime.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                      {selectedTime.toLocaleTimeString("pt-BR", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
                     </Text>
                     <Ionicons name="time-outline" size={20} color="#0D47A1" />
                   </TouchableOpacity>
@@ -212,10 +285,19 @@ export default function HorariosServicoScreen() {
                 )}
 
                 {showTimePicker && (
-                  <DateTimePicker value={selectedTime} mode="time" display="default" onChange={handleTimeChange} />
+                  <DateTimePicker
+                    value={selectedTime}
+                    mode="time"
+                    display="default"
+                    onChange={handleTimeChange}
+                  />
                 )}
 
-                <TouchableOpacity style={styles.saveButton} onPress={handleSaveHorario} disabled={addingHorario}>
+                <TouchableOpacity
+                  style={styles.saveButton}
+                  onPress={handleSaveHorario}
+                  disabled={addingHorario}
+                >
                   {addingHorario ? (
                     <ActivityIndicator color="white" size="small" />
                   ) : (

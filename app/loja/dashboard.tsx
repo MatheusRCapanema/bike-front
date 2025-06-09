@@ -1,42 +1,83 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from "react-native"
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from "react-native"
 import { useRouter } from "expo-router"
 import { Ionicons } from "@expo/vector-icons"
 import AsyncStorage from "@react-native-async-storage/async-storage"
+import { getPerfilLoja } from "../../lib/api"
 
+// Modificar o componente LojaDashboard para buscar dados reais
 export default function LojaDashboard() {
   const router = useRouter()
   const [lojaId, setLojaId] = useState<number | null>(null)
   const [lojaInfo, setLojaInfo] = useState({
-    nome: "",
+    nome_loja: "",
     endereco: "",
+    descricao: "",
+ latitude: null,
+    longitude: null,
   })
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Recuperar ID da loja do AsyncStorage
-    const getLojaId = async () => {
+    // Recuperar ID da loja do AsyncStorage e buscar dados do backend
+    const carregarDadosLoja = async () => {
       try {
         const id = await AsyncStorage.getItem("lojaId")
         if (id) {
           setLojaId(Number(id))
-          // Aqui você poderia fazer uma chamada API para buscar mais informações da loja
-          // Por enquanto, vamos usar dados fictícios
-          setLojaInfo({
-            nome: "Minha Loja de Bikes",
-            endereco: "Av. das Bicicletas, 123",
-          })
+
+          try {
+            // Buscar dados da loja do backend
+            const perfil = await getPerfilLoja(Number(id))
+
+            // Verificar se perfil é um objeto com as propriedades esperadas
+            if (perfil && typeof perfil === "object") {
+              setLojaInfo({
+                nome_loja: perfil.nome_loja || "Minha Loja",
+                endereco: perfil.endereco || "Endereço não disponível",
+                descricao: perfil.descricao || "Sem descrição disponível",
+ latitude: perfil.latitude || null,
+                // Adicionado longitude aqui
+                longitude: perfil.longitude || null,
+              })
+            } else {
+              console.warn("Formato de perfil inesperado:", perfil)
+              // Usar valores padrão
+              setLojaInfo({
+                nome_loja: "Minha Loja",
+                endereco: "Endereço não disponível",
+ latitude: null,
+                // Adicionado longitude aqui
+                longitude: null,
+                descricao: "Sem descrição disponível",
+              })
+            }
+          } catch (error) {
+            console.error("Erro ao buscar perfil da loja:", error)
+            // Usar valores padrão em caso de erro
+            setLojaInfo({
+              nome_loja: "Minha Loja",
+              endereco: "Endereço não disponível",
+ latitude: null,
+                // Adicionado longitude aqui
+                longitude: null,
+              descricao: "Sem descrição disponível",
+            })
+          }
         } else {
           Alert.alert("Erro", "Sessão expirada. Faça login novamente.")
           router.replace("/loja/login")
         }
       } catch (error) {
         console.error("Erro ao recuperar ID da loja:", error)
+      } finally {
+        setLoading(false)
       }
     }
 
-    getLojaId()
+    carregarDadosLoja()
   }, [])
 
   const handleLogout = async () => {
@@ -48,12 +89,20 @@ export default function LojaDashboard() {
     }
   }
 
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <ActivityIndicator size="large" color="#0D47A1" />
+      </View>
+    )
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <View>
           <Text style={styles.headerTitle}>Dashboard</Text>
-          <Text style={styles.headerSubtitle}>{lojaInfo.nome}</Text>
+          <Text style={styles.headerSubtitle}>{lojaInfo.nome_loja}</Text>
         </View>
         <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
           <Ionicons name="log-out-outline" size={24} color="#0D47A1" />
@@ -67,6 +116,9 @@ export default function LojaDashboard() {
             <Text style={styles.infoTitle}>Informações da Loja</Text>
           </View>
           <Text style={styles.infoText}>{lojaInfo.endereco}</Text>
+          {lojaInfo.descricao && <Text style={styles.infoDescription}>{lojaInfo.descricao}</Text>}
+          <Text style={styles.infoText}>Latitude: {lojaInfo.latitude !== null ? lojaInfo.latitude : 'Não disponível'}</Text>
+          <Text style={styles.infoText}>Longitude: {lojaInfo.longitude !== null ? lojaInfo.longitude : 'Não disponível'}</Text>
           <TouchableOpacity
             style={styles.editButton}
             onPress={() =>
@@ -149,10 +201,15 @@ export default function LojaDashboard() {
   )
 }
 
+// Adicionar estilo para o container de loading
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F5F7FA",
+  },
+  loadingContainer: {
+    justifyContent: "center",
+    alignItems: "center",
   },
   header: {
     flexDirection: "row",
@@ -206,7 +263,13 @@ const styles = StyleSheet.create({
   infoText: {
     fontSize: 14,
     color: "#666",
+    marginBottom: 8,
+  },
+  infoDescription: {
+    fontSize: 14,
+    color: "#666",
     marginBottom: 12,
+    fontStyle: "italic",
   },
   editButton: {
     alignSelf: "flex-start",

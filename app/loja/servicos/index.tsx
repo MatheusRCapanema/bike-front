@@ -21,16 +21,29 @@ export default function ServicosScreen() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
+  // Modificar a função carregarServicos para lidar com diferentes formatos de resposta
   const carregarServicos = async () => {
     if (!lojaId) return
 
     try {
       setLoading(true)
       const data = await getServicos(Number(lojaId))
-      setServicos(data)
+
+      // Verificar se data é um array ou se está dentro de uma propriedade
+      if (Array.isArray(data)) {
+        setServicos(data)
+      } else if (data && Array.isArray(data.servicos)) {
+        setServicos(data.servicos)
+      } else {
+        // Se não for um array, definir como array vazio
+        console.warn("Dados de serviços não são um array:", data)
+        setServicos([])
+      }
     } catch (error) {
       console.error("Erro ao carregar serviços:", error)
-      Alert.alert("Erro", "Não foi possível carregar os serviços.")
+      // Definir serviços como array vazio em caso de erro
+      setServicos([])
+      Alert.alert("Aviso", "Não foi possível carregar os serviços. Tente novamente mais tarde.")
     } finally {
       setLoading(false)
       setRefreshing(false)

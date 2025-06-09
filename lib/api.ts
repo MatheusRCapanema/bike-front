@@ -290,12 +290,18 @@ export async function loginLoja(cnpj: string, senha: string) {
 // Funções para Produtos
 export async function getProdutos(lojaId: number) {
   try {
-    const response = await api.get(`/loja/${lojaId}/produto_com_imagem`)
+    console.log(`🔍 BUSCANDO PRODUTOS - Loja ID: ${lojaId}`)
+    // O endpoint correto é /loja/{lojaId}/produtos (sem o "produto_com_imagem")
+    const response = await api.get(`/loja/${lojaId}/produtos`)
     return response.data
   } catch (error: any) {
+    console.error("❌ ERRO AO BUSCAR PRODUTOS:")
     if (error.response) {
+      console.error(`Status: ${error.response.status}`)
+      console.error("Detalhes do erro:", error.response.data)
       throw new Error(error.response.data.detail || "Erro ao buscar produtos")
     }
+    console.error("Mensagem de erro:", error.message)
     throw new Error("Erro de conexão com o servidor")
   }
 }
@@ -357,12 +363,18 @@ export async function removerProduto(lojaId: number, produtoId: number) {
 // Funções para Serviços
 export async function getServicos(lojaId: number) {
   try {
+    console.log(`🔍 BUSCANDO SERVIÇOS - Loja ID: ${lojaId}`)
+    // O endpoint correto é /loja/{lojaId}/servicos
     const response = await api.get(`/loja/${lojaId}/servicos`)
     return response.data
   } catch (error: any) {
+    console.error("❌ ERRO AO BUSCAR SERVIÇOS:")
     if (error.response) {
+      console.error(`Status: ${error.response.status}`)
+      console.error("Detalhes do erro:", error.response.data)
       throw new Error(error.response.data.detail || "Erro ao buscar serviços")
     }
+    console.error("Mensagem de erro:", error.message)
     throw new Error("Erro de conexão com o servidor")
   }
 }
@@ -425,12 +437,18 @@ export async function criarHorariosServico(lojaId: number, servicoId: number, ho
 // Funções para Perfil da Loja
 export async function getPerfilLoja(lojaId: number) {
   try {
+    console.log(`🔍 BUSCANDO PERFIL DA LOJA - Loja ID: ${lojaId}`)
+    // O endpoint correto é /loja/{lojaId}
     const response = await api.get(`/loja/${lojaId}`)
     return response.data
   } catch (error: any) {
+    console.error("❌ ERRO AO BUSCAR PERFIL DA LOJA:")
     if (error.response) {
+      console.error(`Status: ${error.response.status}`)
+      console.error("Detalhes do erro:", error.response.data)
       throw new Error(error.response.data.detail || "Erro ao buscar perfil da loja")
     }
+    console.error("Mensagem de erro:", error.message)
     throw new Error("Erro de conexão com o servidor")
   }
 }

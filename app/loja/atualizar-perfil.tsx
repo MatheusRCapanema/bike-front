@@ -44,7 +44,7 @@ export default function AtualizarPerfilScreen() {
         setNomeLoja(perfil.nome_loja || "")
         setDescricao(perfil.descricao || "")
         if (perfil.foto_path) {
-          setImagem(`http://seu-backend-url.com/${perfil.foto_path}`)
+          setImagem(`https://5000-idx-bikestoreapi-1744211447227.cluster-uf6urqn4lned4spwk4xorq6bpo.cloudworkstations.dev/${perfil.foto_path}`)
         }
       } catch (error) {
         console.error("Erro ao carregar perfil:", error)

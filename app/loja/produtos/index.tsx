@@ -22,16 +22,31 @@ export default function ProdutosScreen() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
+  // Corrigir o problema de carregamento de produtos
+
+  // Modificar a função carregarProdutos para lidar com diferentes formatos de resposta
   const carregarProdutos = async () => {
     if (!lojaId) return
 
     try {
       setLoading(true)
       const data = await getProdutos(Number(lojaId))
-      setProdutos(data)
+
+      // Verificar se data é um array ou se está dentro de uma propriedade
+      if (Array.isArray(data)) {
+        setProdutos(data)
+      } else if (data && Array.isArray(data.produtos)) {
+        setProdutos(data.produtos)
+      } else {
+        // Se não for um array, definir como array vazio
+        console.warn("Dados de produtos não são um array:", data)
+        setProdutos([])
+      }
     } catch (error) {
       console.error("Erro ao carregar produtos:", error)
-      Alert.alert("Erro", "Não foi possível carregar os produtos.")
+      // Definir produtos como array vazio em caso de erro
+      setProdutos([])
+      Alert.alert("Aviso", "Não foi possível carregar os produtos. Tente novamente mais tarde.")
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -70,7 +85,7 @@ export default function ProdutosScreen() {
   const renderProdutoItem = ({ item }: { item: Produto }) => (
     <View style={styles.produtoItem}>
       <Image
-        source={{ uri: `http://seu-backend-url.com/${item.image_path}` }}
+        source={{ uri: `https://5000-idx-bikestoreapi-1744211447227.cluster-uf6urqn4lned4spwk4xorq6bpo.cloudworkstations.dev/${item.image_path}` }}
         style={styles.produtoImagem}
         defaultSource={require("../../../assets/placeholder-image.png")}
       />

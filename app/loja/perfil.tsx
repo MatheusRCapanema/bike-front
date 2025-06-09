@@ -26,8 +26,44 @@ export default function LojaPerfil() {
         const id = await AsyncStorage.getItem("lojaId")
         if (id) {
           setLojaId(Number(id))
-          const perfil = await getPerfilLoja(Number(id))
-          setLojaInfo(perfil)
+          try {
+            const perfil = await getPerfilLoja(Number(id))
+
+            // Verificar se perfil é um objeto com as propriedades esperadas
+            if (perfil && typeof perfil === "object") {
+              setLojaInfo({
+                nome_loja: perfil.nome_loja || "",
+                cnpj: perfil.cnpj || "",
+                endereco: perfil.endereco || "",
+                cep: perfil.cep || "",
+                descricao: perfil.descricao || "",
+                foto_path: perfil.foto_path,
+              })
+            } else {
+              console.warn("Formato de perfil inesperado:", perfil)
+              // Usar valores padrão
+              setLojaInfo({
+                nome_loja: "Minha Loja",
+                cnpj: "",
+                endereco: "",
+                cep: "",
+                descricao: "Sem descrição disponível",
+                foto_path: null,
+              })
+            }
+          } catch (error) {
+            console.error("Erro ao buscar perfil:", error)
+            // Usar valores padrão em caso de erro
+            setLojaInfo({
+              nome_loja: "Minha Loja",
+              cnpj: "",
+              endereco: "",
+              cep: "",
+              descricao: "Sem descrição disponível",
+              foto_path: null,
+            })
+            // Não mostrar alerta para não interromper o fluxo do usuário
+          }
         } else {
           Alert.alert("Erro", "Sessão expirada. Faça login novamente.")
           router.replace("/loja/login")
@@ -70,7 +106,7 @@ export default function LojaPerfil() {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.profileImageContainer}>
           {lojaInfo.foto_path ? (
-            <Image source={{ uri: `http://seu-backend-url.com/${lojaInfo.foto_path}` }} style={styles.profileImage} />
+            <Image source={{ uri: `https://5000-idx-bikestoreapi-1744211447227.cluster-uf6urqn4lned4spwk4xorq6bpo.cloudworkstations.dev/${lojaInfo.foto_path}` }} style={styles.profileImage} />
           ) : (
             <View style={styles.profileImagePlaceholder}>
               <Ionicons name="business-outline" size={50} color="#CCC" />
