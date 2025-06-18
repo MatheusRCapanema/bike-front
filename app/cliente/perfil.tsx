@@ -1,31 +1,73 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from "react-native"
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  ActivityIndicator,
+  Alert,
+} from "react-native"
 import { useRouter } from "expo-router"
 import { Ionicons } from "@expo/vector-icons"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 
+type ClienteInfo = {
+  nome: string
+  cpf: string
+  idade: number
+}
+
+const BASE_URL =
+  "https://5000-idx-bikestoreapi-1744211447227.cluster-uf6urqn4lned4spwk4xorq6bpo.cloudworkstations.dev"
+
 export default function ClientePerfil() {
   const router = useRouter()
-  const [clienteInfo, setClienteInfo] = useState({
-    nome: "Nome do Cliente",
-    cpf: "123.456.789-00",
-    idade: 30,
-  })
+  const [info, setInfo] = useState<ClienteInfo | null>(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Aqui você carregaria os dados do cliente da API
-    // Por enquanto, estamos usando dados estáticos
+    ;(async () => {
+      const idStr = await AsyncStorage.getItem("clienteId")
+      if (!idStr) {
+        setLoading(false)
+        return router.replace("/welcome-screen")
+      }
+      const id = Number(idStr)
+      try {
+        const res = await fetch(`${BASE_URL}/clientes/me?cliente_id=${id}`)
+        if (!res.ok) throw new Error(await res.text())
+        const json = await res.json()
+        setInfo({ nome: json.nome, cpf: json.cpf, idade: json.idade })
+      } catch (e) {
+        console.error("Erro ao carregar perfil:", e)
+      } finally {
+        setLoading(false)
+      }
+    })()
   }, [])
 
   const handleLogout = async () => {
-    try {
-      await AsyncStorage.removeItem("clienteId")
-      router.replace("/welcome-screen")
-    } catch (error) {
-      console.error("Erro ao fazer logout:", error)
-    }
+    await AsyncStorage.removeItem("clienteId")
+    router.replace("/welcome-screen")
+  }
+
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.center]}>
+        <ActivityIndicator size="large" />
+      </View>
+    )
+  }
+
+  if (!info) {
+    return (
+      <View style={[styles.container, styles.center]}>
+        <Text>Não foi possível carregar os dados.</Text>
+      </View>
+    )
   }
 
   return (
@@ -42,18 +84,18 @@ export default function ClientePerfil() {
           <View style={styles.profileImagePlaceholder}>
             <Ionicons name="person" size={50} color="#CCC" />
           </View>
-          <Text style={styles.profileName}>{clienteInfo.nome}</Text>
+          <Text style={styles.profileName}>{info.nome}</Text>
         </View>
 
         <View style={styles.infoCard}>
           <View style={styles.infoSection}>
             <Text style={styles.infoLabel}>CPF</Text>
-            <Text style={styles.infoValue}>{clienteInfo.cpf}</Text>
+            <Text style={styles.infoValue}>{info.cpf}</Text>
           </View>
 
           <View style={styles.infoSection}>
             <Text style={styles.infoLabel}>Idade</Text>
-            <Text style={styles.infoValue}>{clienteInfo.idade} anos</Text>
+            <Text style={styles.infoValue}>{info.idade} anos</Text>
           </View>
 
           <TouchableOpacity
@@ -65,41 +107,15 @@ export default function ClientePerfil() {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.menuCard}>
-          <TouchableOpacity style={styles.menuItem}>
-            <Ionicons name="bicycle-outline" size={24} color="#0D47A1" />
-            <Text style={styles.menuItemText}>Minhas Bicicletas</Text>
-            <Ionicons name="chevron-forward" size={20} color="#999" />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.menuItem}>
-            <Ionicons name="heart-outline" size={24} color="#0D47A1" />
-            <Text style={styles.menuItemText}>Lojas Favoritas</Text>
-            <Ionicons name="chevron-forward" size={20} color="#999" />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.menuItem}>
-            <Ionicons name="settings-outline" size={24} color="#0D47A1" />
-            <Text style={styles.menuItemText}>Configurações</Text>
-            <Ionicons name="chevron-forward" size={20} color="#999" />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.menuItem}>
-            <Ionicons name="help-circle-outline" size={24} color="#0D47A1" />
-            <Text style={styles.menuItemText}>Ajuda e Suporte</Text>
-            <Ionicons name="chevron-forward" size={20} color="#999" />
-          </TouchableOpacity>
-        </View>
+        {/* aqui ainda pode ter menu de opções, se quiser */}
       </ScrollView>
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F5F7FA",
-  },
+  container: { flex: 1, backgroundColor: "#F5F7FA" },
+  center: { justifyContent: "center", alignItems: "center" },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -111,18 +127,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#E0E0E0",
   },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#0D47A1",
-  },
-  logoutButton: {
-    padding: 8,
-  },
-  content: {
-    flex: 1,
-    padding: 20,
-  },
+  headerTitle: { fontSize: 20, fontWeight: "bold", color: "#0D47A1" },
+  logoutButton: { padding: 8 },
+  content: { flex: 1, padding: 20 },
   profileImageContainer: {
     alignItems: "center",
     marginBottom: 24,
@@ -138,11 +145,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#E0E0E0",
   },
-  profileName: {
-    fontSize: 22,
-    fontWeight: "bold",
-    color: "#333",
-  },
+  profileName: { fontSize: 22, fontWeight: "bold", color: "#333" },
   infoCard: {
     backgroundColor: "white",
     borderRadius: 12,
@@ -154,19 +157,14 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  infoSection: {
-    marginBottom: 16,
-  },
+  infoSection: { marginBottom: 16 },
   infoLabel: {
     fontSize: 14,
     fontWeight: "500",
     color: "#666",
     marginBottom: 4,
   },
-  infoValue: {
-    fontSize: 16,
-    color: "#333",
-  },
+  infoValue: { fontSize: 16, color: "#333" },
   editButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -182,30 +180,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     marginLeft: 8,
-  },
-  menuCard: {
-    backgroundColor: "white",
-    borderRadius: 12,
-    padding: 8,
-    marginBottom: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  menuItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 16,
-    paddingHorizontal: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F0F0F0",
-  },
-  menuItemText: {
-    flex: 1,
-    fontSize: 16,
-    color: "#333",
-    marginLeft: 12,
   },
 })
